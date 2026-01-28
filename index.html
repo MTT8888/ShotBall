@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VioletShot</title>
+
+<!-- فونت گیمینگ -->
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+body{
+  margin:0;
+  background:#050008;
+  overflow:hidden;
+  font-family:'Orbitron', Arial, sans-serif;
+  color:white;
+}
+canvas{
+  display:block;
+  margin:auto;
+  background:#0b0014;
+}
+
+/* منو */
+.menu{
+  position:fixed;
+  inset:0;
+  background:radial-gradient(circle,#3a0066,#000);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  z-index:10;
+  text-align:center;
+}
+.menu h1{
+  font-size:42px;
+  margin-bottom:25px;
+  text-shadow:0 0 25px #b84dff;
+}
+.menu button{
+  width:220px;
+  margin:10px;
+  padding:12px;
+  font-size:20px;
+  border:none;
+  border-radius:10px;
+  background:#5a189a;
+  color:white;
+  box-shadow:0 0 18px #b84dff;
+  font-family:'Orbitron';
+}
+
+/* کنترل‌ها */
+.controls{
+  position:fixed;
+  bottom:10px;
+  width:100%;
+  display:none;
+  justify-content:space-around;
+}
+.btn{
+  width:70px;
+  height:70px;
+  border-radius:50%;
+  background:#3c096c;
+  color:white;
+  font-size:26px;
+  border:none;
+  box-shadow:0 0 15px #b84dff;
+}
+.shoot{
+  width:90px;
+  height:90px;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game" width="360" height="500"></canvas>
+
+<!-- منوی اصلی -->
+<div id="menu" class="menu">
+  <h1>VioletShot</h1>
+  <button onclick="openModes()">Start</button>
+</div>
+
+<!-- انتخاب مود -->
+<div id="modes" class="menu" style="display:none">
+  <h1>VioletShot</h1>
+  <button onclick="startGame('easy')">🟢 EASY</button>
+  <button onclick="startGame('normal')">🟡 NORMAL</button>
+  <button onclick="startGame('hard')">🔴 HARD</button>
+</div>
+
+<!-- کنترل‌ها -->
+<div class="controls" id="controls">
+  <button class="btn"
+    ontouchstart="keys.left=true"
+    ontouchend="keys.left=false">《  </button>
+
+  <button class="btn shoot" ontouchstart="shoot()">🔥</button>
+
+  <button class="btn"
+    ontouchstart="keys.right=true"
+    ontouchend="keys.right=false">  》</button>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const keys={left:false,right:false};
+const bullets=[],rocks=[];
+let score=0,lives=3;
+let gameMode="normal";
+let spawnInterval;
+
+/* پلیر */
+const player={
+  x:180,
+  y:420,
+  r:18,
+  speed:4
+};
+
+/* منو */
+function openModes(){
+  document.getElementById("menu").style.display="none";
+  document.getElementById("modes").style.display="flex";
+}
+
+function startGame(mode){
+  gameMode=mode;
+  document.getElementById("modes").style.display="none";
+  document.getElementById("controls").style.display="flex";
+  resetGame();
+}
+
+/* دشمن */
+function spawnRock(){
+  rocks.push({
+    x:Math.random()*(canvas.width-20)+10,
+    y:-20,
+    r:8,
+    speed: modeSpeed()
+  });
+}
+
+function modeSpeed(){
+  if(gameMode==="easy") return 1.3;
+  if(gameMode==="hard") return 3;
+  return 2;
+}
+
+/* شلیک */
+function shoot(){
+  bullets.push({
+    x:player.x,
+    y:player.y-25,
+    r:4,
+    speed:10
+  });
+}
+
+/* برخورد */
+function hit(a,b){
+  const dx=a.x-b.x,dy=a.y-b.y;
+  return Math.sqrt(dx*dx+dy*dy)<a.r+b.r;
+}
+
+/* ریست */
+function resetGame(){
+  score=0;
+  lives=3;
+  bullets.length=rocks.length=0;
+  clearInterval(spawnInterval);
+
+  let time = gameMode==="easy"?2500:gameMode==="hard"?900:1600;
+  spawnInterval=setInterval(spawnRock,time);
+}
+
+/* آپدیت */
+function update(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(keys.left)player.x-=player.speed;
+  if(keys.right)player.x+=player.speed;
+  player.x=Math.max(player.r,Math.min(canvas.width-player.r,player.x));
+
+  bullets.forEach((b,i)=>{
+    b.y-=b.speed;
+    if(b.y<0) bullets.splice(i,1);
+  });
+
+  rocks.forEach((r,ri)=>{
+    r.y+=r.speed;
+
+    bullets.forEach((b,bi)=>{
+      if(hit(b,r)){
+        bullets.splice(bi,1);
+        rocks.splice(ri,1);
+        score+=10;
+      }
+    });
+
+    if(r.y>canvas.height){
+      rocks.splice(ri,1);
+      lives--;
+      if(lives<=0) gameOver();
+    }
+  });
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+/* رسم */
+function draw(){
+  // زمین
+  ctx.fillStyle="#12001f";
+  ctx.fillRect(0,460,canvas.width,40);
+
+  // تیر
+  ctx.fillStyle="yellow";
+  bullets.forEach(b=>{
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // سنگ با نور
+  rocks.forEach(r=>{
+    ctx.save();
+    ctx.shadowColor="#b84dff";
+    ctx.shadowBlur=15;
+    ctx.fillStyle="#888";
+    ctx.beginPath();
+    ctx.arc(r.x,r.y,r.r,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // پلیر با نور بنفش
+  ctx.save();
+  ctx.shadowColor="#b84dff";
+  ctx.shadowBlur=25;
+  ctx.fillStyle="purple";
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // HUD
+  ctx.fillStyle="white";
+  ctx.font="18px Orbitron";
+  ctx.fillText("SCORE: "+score,10,25);
+  ctx.fillText("❤ "+lives,10,50);
+}
+
+/* گیم اور */
+function gameOver(){
+  clearInterval(spawnInterval);
+  document.getElementById("controls").style.display="none";
+  document.getElementById("menu").style.display="flex";
+}
+
+update();
+</script>
+
+</body>
+</html>
